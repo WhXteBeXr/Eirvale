@@ -1,0 +1,23 @@
+{
+  "extends": ["stylelint-config-standard"],
+  "rules": {
+    "alpha-value-notation": "number",
+    "color-function-notation": "modern",
+    "import-notation": "string",
+    "selector-class-pattern": [
+      "^([a-z][a-z0-9]*)(-[a-z0-9]+)*$",
+      {
+        "message": "Class names should be kebab-case"
+      }
+    ],
+    "custom-property-pattern": [
+      "^([a-z][a-z0-9]*)(-[a-z0-9]+)*$",
+      {
+        "message": "CSS custom properties should be kebab-case"
+      }
+    ],
+    "declaration-no-important": true,
+    "no-descending-specificity": true,
+    "declaration-block-no-redundant-longhand-properties": true
+  }
+}
