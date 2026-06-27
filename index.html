@@ -3,29 +3,50 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="description" content="App description" />
-    <meta name="color-scheme" content="Color scheme" />
+    <meta
+      name="description"
+      content="Eirvale is a minimalist RPG-inspired task and goal tracker"
+    />
+    <meta name="color-scheme" content="light dark" />
     <meta name="author" content="WhXteBeXr" />
 
     <link rel="icon" type="image/svg+xml" href="" />
     <link rel="icon" type="image/png" href="" />
     <link rel="apple-touch-icon" href="" />
 
-    <meta property="og:title" content="App title" />
-    <meta property="og:description" content="App description" />
+    <meta property="og:title" content="Eirvale" />
+    <meta
+      property="og:description"
+      content="Minimalist RPG-inspired task and goal tracker"
+    />
     <meta property="og:type" content="website" />
     <meta property="og:url" content="https://example.com" />
     <meta property="og:image" content="https://example.com/image.jpg" />
 
     <meta name="twitter:card" content="summary_large_image" />
-    <meta name="twitter:title" content="App title" />
-    <meta name="twitter:description" content="App description" />
+    <meta name="twitter:title" content="Eirvale" />
+    <meta
+      name="twitter:description"
+      content="Minimalist RPG-inspired task and goal tracker"
+    />
     <meta name="twitter:image" content="https://example.com/image.jpg" />
 
-    <title>Template page</title>
+    <title>Eirvale</title>
   </head>
   <body>
-    <div id="app"></div>
+    <div id="app">
+      <aside id="left-sidebar" class="left-sidebar"
+             aria-label="left sidebar"></aside>
+      <main id="content-container" class="content-container">
+        <div class="content-container_fringe"></div>
+        <button class="content-container_collapse-sidebar"></button>
+        <button class="content-container_add-favorite-layer"></button>
+        <button class="content-container_collapse-sidebar"></button>
+        <div class="content-container_action-panel"></div>
+      </main>
+      <aside id="right-sidebar" class="right-sidebar"
+             aria-label="right sidebar"></aside>
+    </div>
     <script type="module" src="/src/app/main.ts"></script>
   </body>
 </html>
