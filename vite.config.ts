@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 export default defineConfig({
-  base: '/repo-name/',
+  base: '/Eirvale/',
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
