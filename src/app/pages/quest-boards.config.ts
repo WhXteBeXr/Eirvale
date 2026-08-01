@@ -1,24 +1,9 @@
-type Action = 'add' | 'remove' | 'archive';
-
-export type ToolbarAction = {
+export interface ToolbarAction {
   id: number;
-  name: Action;
-};
-
-export const AVAILABLE_ACTIONS: ToolbarAction[] = [
-  {
-    id: 1,
-    name: 'add',
-  },
-  {
-    id: 2,
-    name: 'remove',
-  },
-  {
-    id: 3,
-    name: 'archive',
-  }
-];
+  name: string;
+  title?: string;
+  description?: string;
+}
 
 export interface QuestDate {
   day: string;
@@ -28,23 +13,28 @@ export interface QuestDate {
 
 export interface QuestCard {
   id: number;
+  className: string;
   title: string;
   description: string;
   rewards: string[];
   creationDate?: QuestDate;
-  expiryDate?: QuestDate;
+  expirationDate?: QuestDate;
 }
 
 export interface QuestColumn {
   id: number;
+  className: string;
   title: string;
   importance: string;
   listedQuests: QuestCard[];
-  questsContained?: number;
+  totalQuests?: number;
 }
 
 export interface QuestBoard {
   id: number;
+  className: string;
   title: string;
   questColumns: QuestColumn[];
-} // TODO: Проверить стоит ли перенести типы в конфиг файл
+}
+
+export type QBElementInfo = QuestBoard | QuestColumn | QuestCard;
