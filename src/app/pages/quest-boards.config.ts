@@ -1,43 +1,44 @@
-type KindOfDate = 'creation' | 'expiration';
+// TODO: Пройтись по названиям, подобрать более подходящие
 
-export type QBPageElement = QuestCard | QuestColumn | QuestBoard;
+export type DateKind = 'creation' | 'expiration';
 
-export interface Date {
-  day: string;
-  month: string;
-  year: string;
+export type TitleNode = 'h1' | 'h2' | 'h3' | 'h4' | 'h5' | 'h6';
+
+export type DescriptionNode = 'p';
+
+export type Id = number;
+
+export type QBoardNode = QuestCard | QuestColumn | QuestBoard;
+
+export interface DateFormat {
+  day: number;
+  month: number;
+  year: number;
+  // TODO: Поправить формат даты iso 8601
 }
 
-interface QuestDate {
-  kind: KindOfDate;
-  date?: Date;
-}
-
-interface QBBaseElement {
-  id: number;
-  title?: string;
+// Общий базовый элемент блока доски
+interface QBBaseNode {
+  id: Id;
+  title: string;
   description?: string;
 }
 
-interface QBElement<TChild extends QBPageElement> extends QBBaseElement {
-  children: TChild[];
+export interface QuestBoard extends QBBaseNode {
+  columns: QuestColumn[];
+  quests: QuestCard[];
 }
 
-export interface QuestCard extends QBElement<never> {
-  rewards: string[];
-  dates: {
-    creation: QuestDate;
-    expiration: QuestDate;
-  };
-}
-
-export interface QuestColumn extends QBElement<QuestCard> {
+export interface QuestColumn extends QBBaseNode {
   importance: string;
-  totalQuests?: number;
+  // TODO: Можно добавить порядок столбца
 }
 
-export interface QuestBoard extends QBElement<QuestColumn> {
-  totalColumns?: number;
+export interface QuestCard extends QBBaseNode {
+  columnId: Id;
+  rewards: string[];
+  creation?: DateFormat;
+  expiration?: DateFormat;
 }
 
 export interface ToolbarAction {

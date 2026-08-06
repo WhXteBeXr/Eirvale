@@ -1,18 +1,25 @@
 import '@/app/styles/global.css';
 import '@/app/styles/style.css';
 
-import { QuestBoardsPage } from '@/app/pages/quest-boards.ts';
-import { QUEST_BOARDS_DATA } from '@/app/pages/test data/quest-boards-data.ts';
+import { QuestBoardPage } from '@/app/pages/quest-boards.ts';
+import {
+  QUEST_BOARDS,
+  TOOLBAR_ACTIONS,
+} from '@/app/pages/test data/quest-boards-data.ts';
 
 const pageContainer = document.getElementById(
-  'content-container',
+  'content-container__page',
+) as HTMLElement; // TODO: Создать контейнер раздела контента в HTML и передавать его вместо всего центрального блока
+
+const toolbarContainer = document.getElementById(
+  'actions-panel',
 ) as HTMLElement;
 
-const questBoardsPage: QuestBoardsPage = new QuestBoardsPage(
+const questBoardsPage: QuestBoardPage = new QuestBoardPage(
   pageContainer,
-  QUEST_BOARDS_DATA[0],
+  toolbarContainer,
+  QUEST_BOARDS,
+  TOOLBAR_ACTIONS
 );
 
-questBoardsPage.mountPage();
-questBoardsPage.switchBoard(QUEST_BOARDS_DATA[1])
-// questBoardsPage.unmountPage()
+questBoardsPage.mount();

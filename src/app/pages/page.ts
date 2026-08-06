@@ -23,14 +23,14 @@ export abstract class Page {
   }
 
   // Метод создающий всю разметку выбранной страницы
-  protected abstract createPageLayout(): HTMLElement;
+  protected abstract renderPageLayout(): HTMLElement;
 
   // Обработчик кликов по кнопкам. Обрабатываются события по id из датасета кнопки
   protected abstract handleToolbarAction(button: HTMLButtonElement): void;
 
   // Монтирование страницы
   public mount(): void {
-    this.rootElement = this.createPageLayout();
+    this.rootElement = this.renderPageLayout();
     this.mountContainer.appendChild(this.rootElement);
     this.displayActions();
     this.attachToolbarDelegation();
@@ -59,7 +59,7 @@ export abstract class Page {
     this.handlers.push({
       element,
       type,
-      listener: listener as EventListener, // Стоит пересмотреть хранение
+      listener: listener as EventListener, // TODO: Стоит пересмотреть хранение
       options,
     });
   }
