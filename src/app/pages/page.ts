@@ -1,56 +1,54 @@
-import type { ToolbarAction } from '@/app/pages/quest-boards.config.ts';
+import type { ToolbarAction } from '@/app/pages/quest boards/quest-boards.types.ts';
 
+// Базовый класс для всех возможных страниц
 export abstract class Page {
+  private readonly TOOLBAR_CLASS_NAME: string = 'toolbar-container'; // Класс тулбар контейнера
   private handlers: Array<{
     element: Element;
     type: string;
     listener: EventListener;
     options?: boolean | AddEventListenerOptions;
-  }> = []; // Слушатели на всех элементах страницы
-  private readonly mountContainer: HTMLElement; // Корневой родительский контейнер
-  private readonly toolbarContainer: HTMLElement; // Контейнер toolbar
-  private toolbarActions: Array<ToolbarAction> = []; // Доступные действия тулбара на странице
-  private rootElement: HTMLElement | null = null; // Монтируемый элемент страницы
+  }> = []; // Слушатели всех элементов страницы
+  private page: HTMLElement[] | null = null; // Монтируемая страница
+  private toolbar: HTMLElement | null = null; // Элемент тулбара страницы
+  private readonly toolbarActions: ToolbarAction[]; // Доступные действия из тулбара
+  private readonly pageMountContainer: HTMLElement; // Корневой родительский контейнер
 
   protected constructor(
     mountContainer: HTMLElement,
-    toolbarContainer: HTMLElement,
-    toolbarActions: Array<ToolbarAction>,
+    toolbarActions: ToolbarAction[],
   ) {
-    this.mountContainer = mountContainer;
-    this.toolbarContainer = toolbarContainer;
+    this.pageMountContainer = mountContainer;
     this.toolbarActions = toolbarActions;
   }
 
-  // Метод создающий всю разметку выбранной страницы
-  protected abstract renderPageLayout(): HTMLElement;
+  // Метод создающий всю разметку страницы
+  protected abstract createPageLayout(): HTMLElement[];
 
-  // Обработчик кликов по кнопкам. Обрабатываются события по id из датасета кнопки
+  // Обработчик кликов по кнопкам. Обработка события по id из датасета кнопки
   protected abstract handleToolbarAction(button: HTMLButtonElement): void;
 
   // Монтирование страницы
   public mount(): void {
-    this.rootElement = this.renderPageLayout();
-    this.mountContainer.appendChild(this.rootElement);
-    this.displayActions();
-    this.attachToolbarDelegation();
+    if (this.page || this.toolbar) {
+      throw new Error('Page is already mounted');
+    }
+
+    this.page = this.createPageLayout();
+    this.toolbar = this.createToolbar();
+    this.pageMountContainer.append(...this.page, this.toolbar);
   }
 
   // Размонтирование страницы
   public unmount(): void {
-    if (!this.rootElement) {
-      return;
-    }
-
-    this.removeListeners();
-    this.clearToolbar();
-    this.mountContainer.removeChild(this.rootElement);
-    this.rootElement = null;
+    this.removeAllListeners();
+    this.clearMountContainer();
   }
 
+  // TODO: Переделать систему на aborController
   // Метод для добавления нового обработчика на элемент
   protected addListener<K extends keyof HTMLElementEventMap>(
-    element: Element,
+    element: HTMLElement,
     type: K,
     listener: (event: HTMLElementEventMap[K]) => void,
     options?: boolean | AddEventListenerOptions,
@@ -65,7 +63,7 @@ export abstract class Page {
   }
 
   // Снятие всех обработчиков
-  private removeListeners(): void {
+  private removeAllListeners(): void {
     this.handlers.forEach(({ element, type, listener, options }) => {
       element.removeEventListener(type, listener, options);
     });
@@ -73,33 +71,53 @@ export abstract class Page {
     this.handlers = [];
   }
 
-  // Создание кнопок тулбара
+  // Очистка всего родительского контейнера
+  private clearMountContainer(): void {
+    this.pageMountContainer.replaceChildren();
+    this.page = null;
+    this.toolbar = null;
+  }
+
+  // Создание контейнера тулбара для страницы
+  private createToolbar(): HTMLElement {
+    const toolbar = document.createElement('ul');
+    toolbar.classList.add(this.TOOLBAR_CLASS_NAME);
+    this.addActionsToToolbar(toolbar, this.toolbarActions);
+    return toolbar;
+  }
+
+  // Метод наполняющий панель действий
+  private addActionsToToolbar(
+    toolbar: HTMLElement,
+    toolbarActions: ToolbarAction[],
+  ): void {
+    toolbarActions.forEach((action) => {
+      const button = this.createButton(action);
+      toolbar.appendChild(button);
+    });
+    this.attachToolbarDelegation(toolbar);
+  }
+
+  // Создание кнопки тулбара
   private createButton(action: ToolbarAction): HTMLButtonElement {
     const button = document.createElement('button');
-    button.classList.add('content-container__action-button');
+    button.classList.add(`${this.TOOLBAR_CLASS_NAME}__action-button`);
     button.dataset.actionId = String(action.id);
-    button.dataset.actionName = action.name;
+    button.dataset.action = action.action;
     return button;
   }
 
-  // Метод наполняющий экшен панель
-  private displayActions(): void {
-    this.toolbarActions.forEach((action) => {
-      const button = this.createButton(action);
-      this.toolbarContainer.appendChild(button);
-    });
-  }
-
-  // Вешаем слушатель на родительский тулбар, сохраняем слушатель для последующего удаления
-  private attachToolbarDelegation(): void {
-    this.addListener(this.toolbarContainer, 'click', (event) => {
+  // Вешаем слушатель на родительский тулбар
+  private attachToolbarDelegation(toolbar: HTMLElement): void {
+    // Сохраняем слушатель для последующего удаления
+    this.addListener(toolbar, 'click', (event) => {
       const target = event.target;
       if (!(target instanceof HTMLElement)) {
         return;
       }
 
       const button = target.closest<HTMLButtonElement>(
-        '.content-container__action-button',
+        '.toolbar-container__action-button',
       );
       if (!button) {
         return;
@@ -107,9 +125,5 @@ export abstract class Page {
 
       this.handleToolbarAction(button);
     });
-  }
-
-  private clearToolbar(): void {
-    this.toolbarContainer.innerHTML = '';
   }
 }

@@ -8,14 +8,10 @@ export type DescriptionNode = 'p';
 
 export type Id = number;
 
-export type QBoardNode = QuestCard | QuestColumn | QuestBoard;
+export type QBoardNode = QuestCard | QuestColumn | QuestBoard; // TODO: Возможно стоит убрать элиас, может быть он избыточен
 
-export interface DateFormat {
-  day: number;
-  month: number;
-  year: number;
-  // TODO: Поправить формат даты iso 8601
-}
+// TODO: Поправить формат даты iso 8601. Попробовать привести к формату через new Date()
+export type ISODate = string; // YYYY-MM-DD
 
 // Общий базовый элемент блока доски
 interface QBBaseNode {
@@ -31,19 +27,20 @@ export interface QuestBoard extends QBBaseNode {
 
 export interface QuestColumn extends QBBaseNode {
   importance: string;
-  // TODO: Можно добавить порядок столбца
+  // TODO: Возможно добавить порядок столбца
 }
 
 export interface QuestCard extends QBBaseNode {
   columnId: Id;
   rewards: string[];
-  creation?: DateFormat;
-  expiration?: DateFormat;
+  creation?: ISODate;
+  expiration?: ISODate;
 }
 
+// TODO: Убрать лишние поля
 export interface ToolbarAction {
-  id: number;
-  name: string;
+  id: Id;
+  action: string;
   title?: string;
   description?: string;
 }
