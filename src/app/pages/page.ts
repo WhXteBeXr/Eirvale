@@ -1,4 +1,4 @@
-import type { ToolbarAction } from '@/app/pages/quest boards/quest-boards.types.ts';
+import type { ToolbarAction } from '@/types/board-pages/board-pages.types.ts';
 
 // Базовый класс для всех возможных страниц
 export abstract class Page {

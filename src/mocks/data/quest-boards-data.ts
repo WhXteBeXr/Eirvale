@@ -1,7 +1,7 @@
 import type {
   QuestBoard,
   ToolbarAction,
-} from '@/app/pages/quest boards/quest-boards.types.ts';
+} from '@/types/board-pages/board-pages.types.ts';
 
 // TODO: Подготовить директорию для моков и вынести файл туда
 

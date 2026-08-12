@@ -1,16 +1,13 @@
 import { Page } from '@/app/pages/page.ts';
+import { BoardManager } from '@/app/pages/board-structure/board-manager.ts';
 import type {
-  ISODate,
   DateKind,
-  DescriptionNode,
-  Id,
   QBoardNode,
   QuestBoard,
   QuestCard,
   QuestColumn,
-  TitleNode,
-  ToolbarAction,
-} from '@/app/pages/quest boards/quest-boards.types.ts';
+} from '@/types/board-pages/board-pages.types.ts';
+import type { ISODate, DescriptionNode, TitleNode, Id, ToolbarAction} from '@/types/board-pages/common.types.ts';
 
 // Базовый класс для страниц со структурой досок
 export abstract class BoardPage extends Page {
@@ -20,15 +17,15 @@ export abstract class BoardPage extends Page {
   private boardContainer: HTMLElement | null = null; // Контейнер для досок
   private boardsSelectionContainer: HTMLElement | null = null;
   private currentBoard: QuestBoard | null = null; // Доска выбранная в текущий момент
-  protected boardsList: QuestBoard[]; // Список всех созданных досок
+  private readonly boardManager: BoardManager;
 
   protected constructor(
+    boardManager: BoardManager,
     mountContainer: HTMLElement,
-    boardsList: QuestBoard[],
     toolbarActions: ToolbarAction[],
   ) {
     super(mountContainer, toolbarActions);
-    this.boardsList = boardsList;
+    this.boardManager = BoardManager;
   }
 
   // Дополнительная логика выбора первой доски при монтировании
@@ -40,7 +37,6 @@ export abstract class BoardPage extends Page {
   // Добавление делегата на родительский элемент для элемента выбора досок
   private attachSelectionDeligation(selectionContainer: HTMLElement): void {
     this.addListener(selectionContainer, 'click', (event): void => {
-
       const target = event.target;
       if (!(target instanceof HTMLElement)) {
         return;
@@ -102,7 +98,9 @@ export abstract class BoardPage extends Page {
   protected getSelectionContainer(): HTMLElement {
     if (!this.boardsSelectionContainer) {
       this.boardsSelectionContainer = document.createElement('section');
-      this.boardsSelectionContainer.classList.add(`${this.BOARDS_SELECTION_CLASS_NAME}`);
+      this.boardsSelectionContainer.classList.add(
+        `${this.BOARDS_SELECTION_CLASS_NAME}`,
+      );
 
       // Вешаем слушатель на родительский контейнер для элементов в нем
       this.attachSelectionDeligation(this.boardsSelectionContainer);
@@ -120,20 +118,12 @@ export abstract class BoardPage extends Page {
     return this.currentBoard;
   }
 
-  // Получение доски по ее id
-  private getBoardById(boardId: Id): QuestBoard {
-    const board = this.boardsList.find((board) => board.id === boardId);
-    if (!board) {
-      throw new Error(`No board with id ${boardId}`);
-    }
-
-    return board;
-  }
-
   // Создание списка с выбором всех доступных досок
   protected createBoardsSelection(): HTMLUListElement {
     const boardsList = document.createElement('ul');
-    boardsList.classList.add(`${this.BOARDS_SELECTION_CLASS_NAME}__boards-list`);
+    boardsList.classList.add(
+      `${this.BOARDS_SELECTION_CLASS_NAME}__boards-list`,
+    );
     this.boardsList.forEach((board) => {
       const listItem = this.createSelectionItem(board);
       boardsList.appendChild(listItem);
@@ -147,7 +137,9 @@ export abstract class BoardPage extends Page {
     const listItem = document.createElement('li');
     listItem.classList.add(`${this.BOARDS_SELECTION_CLASS_NAME}__list-item`);
     const buttonItem = document.createElement('button');
-    buttonItem.classList.add(`${this.BOARDS_SELECTION_CLASS_NAME}__list-item-button`);
+    buttonItem.classList.add(
+      `${this.BOARDS_SELECTION_CLASS_NAME}__list-item-button`,
+    );
     buttonItem.dataset.boardId = board.id.toString();
     buttonItem.textContent = board.title;
     listItem.appendChild(buttonItem);
@@ -218,7 +210,9 @@ export abstract class BoardPage extends Page {
 
     if (quests.length > 0) {
       const questCardContainer = document.createElement('ul');
-      questCardContainer.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__questCard`);
+      questCardContainer.classList.add(
+        `${this.QUEST_BOARD_CLASS_NAME}__questCard`,
+      );
       quests.forEach((quest) => {
         const questCard = this.createQuestCard(quest);
         questCardContainer.appendChild(questCard);

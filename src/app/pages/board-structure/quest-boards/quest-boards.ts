@@ -1,8 +1,6 @@
-import { BoardPage } from '@/app/pages/board-page.ts';
-import type {
-  QuestBoard,
-  ToolbarAction,
-} from '@/app/pages/quest boards/quest-boards.types.ts';
+import { BoardPage } from '@/app/pages/board-structure/board-page.ts';
+import type { QuestBoard } from '@/types/board-pages/board-pages.types.ts';
+import type { ToolbarAction } from '@/types/board-pages/common.types.ts';
 
 // TODO: Переработать систему имен
 // TODO: Продумать систему удаления и добавления элементов доски
