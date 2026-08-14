@@ -1,4 +1,4 @@
-import type { ISODate, Id } from '@/types/board-pages/common.types.ts';
+import type { ISODate, Id } from '@/shared/types/common.types.ts';
 
 // TODO: Пройтись по названиям, подобрать более подходящие
 
@@ -16,10 +16,7 @@ interface QBBaseNode {
 }
 
 // Данные доски, получаемые от сервера
-export type QuestBoard = QBBaseNode;
-
-// Неполные данные доски для передачи на сервер
-export type QuestBoardDTO = Omit<QuestBoard, 'id'>;
+export interface QuestBoard extends QBBaseNode {}
 
 // Данные колонки, получаемые от сервера
 export interface QuestColumn extends QBBaseNode {
@@ -28,9 +25,6 @@ export interface QuestColumn extends QBBaseNode {
   // TODO: Возможно добавить порядок столбца
 }
 
-// Неполные данные колонки для передачи на сервер
-export type QuestColumnDTO = Omit<QuestColumn, 'id'>;
-
 // Данные карточки квеста, получаемые от сервера
 export interface QuestCard extends QBBaseNode {
   columnId: Id;
@@ -38,6 +32,19 @@ export interface QuestCard extends QBBaseNode {
   creation?: ISODate;
   expiration?: ISODate;
 }
+
+// Все данные связанные с одной доской
+export type QBFullData = {
+  board: QuestBoard;
+  columns: QuestColumn[];
+  quests: QuestCard[];
+};
+
+// Неполные данные доски для передачи на сервер
+export type QuestBoardDTO = Omit<QuestBoard, 'id'>;
+
+// Неполные данные колонки для передачи на сервер
+export type QuestColumnDTO = Omit<QuestColumn, 'id'>;
 
 // Неполные данные карточки для передачи на сервер
 export type QuestCardDTO = Omit<QuestCard, 'id'>;
