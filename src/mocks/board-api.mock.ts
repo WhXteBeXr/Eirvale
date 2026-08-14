@@ -1,4 +1,9 @@
-import type { BoardApi } from '@/mocks/board-api.types.ts';
+import type {
+  DeletedBoardData,
+  DeletedColumnData,
+  DeletedQuestData,
+  IBoardApi,
+} from '@/mocks/board-api.types.ts';
 import type {
   QuestBoard,
   QuestColumn,
@@ -6,36 +11,60 @@ import type {
   QuestBoardDTO,
   QuestColumnDTO,
   QuestCardDTO,
-  QBoardNode,
-} from '@/types/board-pages/board-pages.types.ts';
-import type { Id } from '@/types/board-pages/common.types.ts';
+  QBFullData,
+} from '@/app/pages/board-structure/types/board-pages.types.ts';
+import type { Id } from '@/shared/types/common.types.ts';
+import deleteById from '@/shared/utils/QB-delete-by-id.ts';
+import findById from '@/shared/utils/QB-find-by-id.ts';
 import questBoardsData from '@/mocks/data/quest-boards-data.json';
+import { ApiError } from '@/shared/errors/api-errors.ts';
 
-export class MockBoardApi implements BoardApi {
+/** Класс имитирующий работу с сервером для страниц со структурами досок */
+class MockBoardApi implements IBoardApi {
   private readonly BOARD_ENTITY_NAME = 'board' as const;
   private readonly COLUMN_ENTITY_NAME = 'column' as const;
   private readonly QUEST_ENTITY_NAME = 'quest' as const;
   private boards: QuestBoard[] = structuredClone(questBoardsData.boards);
   private columns: QuestColumn[] = structuredClone(questBoardsData.columns);
   private quests: QuestCard[] = structuredClone(questBoardsData.quests);
+  private readonly delayMs: number = 200; // Default 200 ms
+  private readonly failureChance: number = 0.05; // Default: 0.05
 
-  public async getBoards(): Promise<QuestBoard[]> {
+  async getBoards(): Promise<QuestBoard[]> {
     await this.imitateRequest();
     return structuredClone(this.boards);
   }
 
-  public async getBoardTitles(): Promise<string[]> {
+  async getColumns(): Promise<QuestColumn[]> {
     await this.imitateRequest();
-    return this.boards.map((board) => board.title);
+    return structuredClone(this.columns);
   }
 
-  public async getBoardById(id: Id): Promise<QuestBoard> {
+  async getQuests(): Promise<QuestCard[]> {
     await this.imitateRequest();
-    const board = this.findById(this.boards, id, this.BOARD_ENTITY_NAME);
+    return structuredClone(this.quests);
+  }
+
+  async getBoardData(id: Id): Promise<QBFullData> {
+    await this.imitateRequest();
+
+    const board = findById(this.boards, id, this.BOARD_ENTITY_NAME);
+    const columns = this.columns.filter((column) => column.boardId === id);
+    const columnIds = columns.map((column) => column.id);
+    const quests = this.quests.filter((quest) =>
+      columnIds.includes(quest.columnId),
+    );
+
+    return structuredClone({ board, columns, quests });
+  }
+
+  async getBoardById(id: Id): Promise<QuestBoard> {
+    await this.imitateRequest();
+    const board = findById(this.boards, id, this.BOARD_ENTITY_NAME);
     return structuredClone(board);
   }
 
-  public async createBoard(data: QuestBoardDTO): Promise<QuestBoard> {
+  async createBoard(data: QuestBoardDTO): Promise<QuestBoard> {
     await this.imitateRequest();
 
     const board: QuestBoard = {
@@ -48,24 +77,7 @@ export class MockBoardApi implements BoardApi {
     return structuredClone(board);
   }
 
-  public async updateBoard(id: Id, data: QuestBoardDTO): Promise<QuestBoard> {
-    await this.imitateRequest();
-    const board = this.findById(this.boards, id, this.BOARD_ENTITY_NAME);
-    board.title = data.title;
-    board.description = data.description;
-
-    return structuredClone(board);
-  }
-
-  public async deleteBoard(id: Id): Promise<boolean> {
-    await this.imitateRequest();
-
-    // TODO: Доделать реализации методов удаления
-    const deleted = this.removeById(this.boards, id, this.BOARD_ENTITY_NAME);
-    const orphanedColumns = this.columns.filter(column => column.boardId === id);
-  }
-
-  public async createColumn(data: QuestColumnDTO): Promise<QuestColumn> {
+  async createColumn(data: QuestColumnDTO): Promise<QuestColumn> {
     await this.imitateRequest();
 
     const column: QuestColumn = {
@@ -80,30 +92,7 @@ export class MockBoardApi implements BoardApi {
     return structuredClone(column);
   }
 
-  public async updateColumn(
-    columnId: Id,
-    data: QuestColumnDTO,
-  ): Promise<QuestColumn> {
-    await this.imitateRequest();
-
-    const column = this.findById(
-      this.columns,
-      columnId,
-      this.COLUMN_ENTITY_NAME,
-    );
-    column.boardId = data.boardId;
-    column.title = data.title;
-    column.description = data.description;
-    column.importance = data.importance;
-
-    return structuredClone(column);
-  }
-
-  public async deleteColumn(id: Id): Promise<boolean> {
-    throw new Error('Not implemented');
-  }
-
-  public async createQuest(data: QuestCardDTO): Promise<QuestCard> {
+  async createQuest(data: QuestCardDTO): Promise<QuestCard> {
     await this.imitateRequest();
 
     const quest: QuestCard = {
@@ -120,10 +109,32 @@ export class MockBoardApi implements BoardApi {
     return structuredClone(quest);
   }
 
-  public async updateQuest(id: Id, data: QuestCardDTO): Promise<QuestCard> {
+  async updateBoard(id: Id, data: QuestBoardDTO): Promise<QuestBoard> {
+    await this.imitateRequest();
+    const board = findById(this.boards, id, this.BOARD_ENTITY_NAME);
+
+    board.title = data.title;
+    board.description = data.description;
+
+    return structuredClone(board);
+  }
+
+  async updateColumn(columnId: Id, data: QuestColumnDTO): Promise<QuestColumn> {
     await this.imitateRequest();
 
-    const quest = this.findById(this.quests, id, this.QUEST_ENTITY_NAME);
+    const column = findById(this.columns, columnId, this.COLUMN_ENTITY_NAME);
+    column.boardId = data.boardId;
+    column.title = data.title;
+    column.description = data.description;
+    column.importance = data.importance;
+
+    return structuredClone(column);
+  }
+
+  async updateQuest(id: Id, data: QuestCardDTO): Promise<QuestCard> {
+    await this.imitateRequest();
+
+    const quest = findById(this.quests, id, this.QUEST_ENTITY_NAME);
     quest.columnId = data.columnId;
     quest.title = data.title;
     quest.description = data.description;
@@ -134,52 +145,69 @@ export class MockBoardApi implements BoardApi {
     return structuredClone(quest);
   }
 
-  public async deleteQuest(id: Id): Promise<boolean> {
-    throw new Error('Not implemented');
+  async deleteBoard(id: Id): Promise<DeletedBoardData> {
+    await this.imitateRequest();
+    return structuredClone(this.deleteBoardSync(id));
   }
 
-  private async imitateRequest(
-    ms: number = 200,
-    failureChance: number = 0.05,
-  ): Promise<void> {
-    await new Promise((resolve) => setTimeout(resolve, ms));
-    if (Math.random() < failureChance) {
-      throw new Error('Mock request failure');
+  async deleteColumn(id: Id): Promise<DeletedColumnData> {
+    await this.imitateRequest();
+    return structuredClone(this.deleteColumnSync(id));
+  }
+
+  async deleteQuest(id: Id): Promise<DeletedQuestData> {
+    await this.imitateRequest();
+    return structuredClone(this.deleteQuestSync(id));
+  }
+
+  /** Имитация запроса к серверу с задержкой и возможной ошибкой */
+  private async imitateRequest(): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, this.delayMs));
+    if (Math.random() < this.failureChance) {
+      throw new ApiError(500, 'Internal Server Error');
     }
   }
 
-  private findById<T extends QBoardNode>(
-    collection: T[],
-    id: Id,
-    entityName: string,
-  ): T {
-    const found = collection.find((item) => item.id === id);
-    if (!found) {
-      throw new Error(`Unable to find ${entityName} with id: ${id}`);
-    }
-
-    return found;
-  }
-
-  private removeById<T extends QBoardNode>(
-    collection: T[],
-    id: Id,
-    entityName: string,
-  ): T {
-    const index = collection.findIndex((item) => item.id === id);
-    if (index === -1) {
-      throw new Error(`Unable to find ${entityName} with id: ${id}`);
-    }
-
-    const [deleted] = collection.splice(index, 1);
-    if (!deleted) {
-      throw new Error(`An error occurred while deleting ${entityName} with id: ${id}`);
-    }
-
-    return deleted;
-  }
-
+  /** Создание рандомного id (UUID)*/
   private generateNewId(): Id {
     return crypto.randomUUID();
   }
+
+  /** Синхронное каскадное удаление элементов доски */
+  private deleteBoardSync(id: Id): DeletedBoardData {
+    const board = deleteById(this.boards, id, this.BOARD_ENTITY_NAME);
+
+    const orphanedColumnIds: Id[] = this.columns
+      .filter((column) => column.boardId === id)
+      .map((column) => column.id);
+
+    const deletedQuestIds: Id[] = [];
+    orphanedColumnIds.forEach((columnId) => {
+      deletedQuestIds.push(...this.deleteColumnSync(columnId).questIds);
+    });
+
+    return { board, columnsIds: orphanedColumnIds, questIds: deletedQuestIds };
+  }
+
+  /** Синхронное каскадное удаление элементов колонки */
+  private deleteColumnSync(id: Id): DeletedColumnData {
+    const column = deleteById(this.columns, id, this.COLUMN_ENTITY_NAME);
+    const orphanedQuestIds: Id[] = this.quests
+      .filter((quest) => quest.columnId === id)
+      .map((quest) => quest.id);
+
+    orphanedQuestIds.forEach((questId) => {
+      this.deleteQuestSync(questId);
+    });
+
+    return { column, questIds: orphanedQuestIds };
+  }
+
+  /** Синхронное удаление элементов квестов */
+  private deleteQuestSync(id: Id): DeletedQuestData {
+    const quest = deleteById(this.quests, id, this.QUEST_ENTITY_NAME);
+    return { quest };
+  }
 }
+
+export default new MockBoardApi();
