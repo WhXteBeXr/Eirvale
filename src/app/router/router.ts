@@ -46,8 +46,7 @@ class Router {
     if (!value) {
       return false;
     }
-
-    return VALID_LAYERS[realm].includes(value);
+    return VALID_LAYERS[realm].includes(value); // TODO: Проверить эту систему валидации. Возможно стоит прийти к виду isValidRealm
   }
 
   private parseHash(hash: string): RouteParams {

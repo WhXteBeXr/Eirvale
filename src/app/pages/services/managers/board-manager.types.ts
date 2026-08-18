@@ -14,12 +14,38 @@ import type {
   DeletedQuestData,
 } from '@/mocks/board-api.types.ts';
 
+/** Описание возможных событий менеджера */
+export type ChangeEvent =
+  | { type: 'boardListLoaded' }
+  | { type: 'newBoardLoaded'; element: QBFullData }
+  | { type: 'boardCreated'; element: QuestBoard }
+  | { type: 'boardUpdated'; element: QuestBoard }
+  | { type: 'boardDeleted'; element: QuestBoard }
+  | { type: 'columnCreated'; element: QuestColumn }
+  | { type: 'columnUpdated'; element: QuestColumn }
+  | { type: 'columnDeleted'; element: QuestColumn }
+  | { type: 'questCreated'; element: QuestCard }
+  | { type: 'questUpdated'; element: QuestCard }
+  | { type: 'questDeleted'; element: QuestCard };
+
 export interface IBoardManager {
+  /** Подписка на изменения данных в менеджере */
+  subscribe(listener: (event: ChangeEvent) => void): () => void;
+
   /** Загрузить и получить все доски с сервера */
   loadAllBoards(): Promise<QuestBoard[]>;
 
   /** Загрузить и получить все данные о доске */
   loadNewBoard(id: Id): Promise<QBFullData>;
+
+  /** Проверка загружена ли доска */
+  isBoardLoaded(): boolean;
+
+  /** Получение массива загруженных досок */
+  getAllLoadedBoards(): QuestBoard[];
+
+  /** Получение данных загруженной доски */
+  getLoadedBoard(): QBFullData;
 
   /** Создать на сервере новую доску */
   createBoard(data: QuestBoardDTO): Promise<QuestBoard>;

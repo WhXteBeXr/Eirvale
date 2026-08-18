@@ -8,7 +8,10 @@ import type {
   QuestColumnDTO,
 } from '@/app/pages/board-structure/types/board-pages.types.ts';
 import type { Id } from '@/shared/types/common.types.ts';
-import type { IBoardManager } from '@/app/pages/board-structure/types/board-manager.types.ts';
+import type {
+  ChangeEvent,
+  IBoardManager,
+} from '@/app/pages/services/managers/board-manager.types.ts';
 import type {
   DeletedBoardData,
   DeletedColumnData,
@@ -20,7 +23,8 @@ import findById from '@/shared/utils/QB-find-by-id.ts';
 
 /** Менеджер для работы с данными досок */
 export class BoardManager implements IBoardManager {
-  private readonly api: IBoardApi;
+  private readonly api: IBoardApi; // Прослойка для обращения к api сервера
+  private readonly listeners: Set<(listener: ChangeEvent) => void> = new Set(); // Коллекция слушателей подписанных на менеджер
   private boardsList: QuestBoard[] | null = null; // Все доски полученные от сервера
   private loadedBoard: QBFullData | null = null; // Текущая выбранная доска
 
@@ -28,10 +32,18 @@ export class BoardManager implements IBoardManager {
     this.api = api;
   }
 
+  subscribe(listener: (event: ChangeEvent) => void): () => void {
+    this.listeners.add(listener);
+    return () => {
+      this.listeners.delete(listener);
+    };
+  }
+
   async loadAllBoards(): Promise<QuestBoard[]> {
     try {
       this.boardsList = await withRetry(() => this.api.getBoards());
-      return this.boardsList;
+      this.notify({ type: 'boardListLoaded' });
+      return structuredClone(this.boardsList);
     } catch (e) {
       throw new Error('Unable to load boards', { cause: e });
     }
@@ -39,11 +51,33 @@ export class BoardManager implements IBoardManager {
 
   async loadNewBoard(id: Id): Promise<QBFullData> {
     try {
-      this.loadedBoard = await withRetry(() => this.api.getBoardData(id));
-      return this.loadedBoard;
+      if (this.loadedBoard?.board.id !== id) {
+        this.loadedBoard = await withRetry(() => this.api.getBoardData(id));
+      }
+      const loadedBoardClone = structuredClone(this.loadedBoard);
+      this.notify({ type: 'newBoardLoaded', element: loadedBoardClone });
+      return loadedBoardClone;
     } catch (e) {
       throw new Error('Failed to load board', { cause: e });
     }
+  }
+
+  isBoardLoaded(): boolean {
+    return !!this.loadedBoard;
+  }
+
+  getAllLoadedBoards(): QuestBoard[] {
+    if (this.boardsList === null) {
+      throw new Error('Boards is not loaded');
+    }
+    return structuredClone(this.boardsList);
+  }
+
+  getLoadedBoard(): QBFullData {
+    if (!this.loadedBoard) {
+      throw new Error('Current board is not loaded');
+    }
+    return structuredClone(this.loadedBoard);
   }
 
   /* Дополнительные проверки существования для создания доски не требуется.
@@ -56,7 +90,9 @@ export class BoardManager implements IBoardManager {
         maxAttempts: 1,
       });
       this.boardsList?.push(board);
-      return board;
+      const boardClone = structuredClone(board);
+      this.notify({ type: 'boardCreated', element: boardClone });
+      return boardClone;
     } catch (e) {
       throw new Error('Failed to create board', {
         cause: e,
@@ -73,7 +109,9 @@ export class BoardManager implements IBoardManager {
         maxAttempts: 1,
       });
       this.loadedBoard?.columns.push(column);
-      return column;
+      const columnClone = structuredClone(column);
+      this.notify({ type: 'columnCreated', element: columnClone });
+      return columnClone;
     } catch (e) {
       throw new Error('Failed to create column', { cause: e });
     }
@@ -85,7 +123,9 @@ export class BoardManager implements IBoardManager {
         maxAttempts: 1,
       });
       this.loadedBoard?.quests.push(quest);
-      return quest;
+      const questClone = structuredClone(quest);
+      this.notify({ type: 'questCreated', element: questClone });
+      return questClone;
     } catch (e) {
       throw new Error('Failed to create quest card', {
         cause: e,
@@ -110,6 +150,7 @@ export class BoardManager implements IBoardManager {
         this.loadedBoard.board = updatedBoard;
       }
 
+      this.notify({ type: 'boardUpdated', element: updatedBoard });
       return updatedBoard;
     } catch (e) {
       throw new Error('Failed to update board', { cause: e });
@@ -117,23 +158,24 @@ export class BoardManager implements IBoardManager {
   }
 
   async updateColumn(id: Id, data: QuestColumnDTO): Promise<QuestColumn> {
-    if (!this.loadedBoard) {
-      return Promise.reject(
-        `Current board isn't selected. Unable to update column`,
-      );
+    const board = this.loadedBoard;
+
+    if (!board) {
+      throw new Error(`Current board isn't selected. Unable to update column`);
     }
 
     try {
       const updatedColumn = await withRetry(() =>
         this.api.updateColumn(id, data),
       );
-      const oldColumn = findById(this.loadedBoard.columns, id, 'column');
+      const oldColumn = findById(board.columns, id, 'column');
 
       oldColumn.boardId = updatedColumn.boardId;
       oldColumn.title = updatedColumn.title;
       oldColumn.description = updatedColumn.description;
       oldColumn.importance = updatedColumn.importance;
 
+      this.notify({ type: 'columnUpdated', element: updatedColumn });
       return updatedColumn;
     } catch (e) {
       throw new Error('Failed to update column', { cause: e });
@@ -141,7 +183,9 @@ export class BoardManager implements IBoardManager {
   }
 
   async updateQuest(id: Id, data: QuestCardDTO): Promise<QuestCard> {
-    if (!this.loadedBoard) {
+    const board = this.loadedBoard;
+
+    if (!board) {
       throw new Error(`Current board isn't selected. Unable to update quest`);
     }
 
@@ -149,7 +193,7 @@ export class BoardManager implements IBoardManager {
       const updatedQuest = await withRetry(() =>
         this.api.updateQuest(id, data),
       );
-      const oldQuest = findById(this.loadedBoard.quests, id, 'column');
+      const oldQuest = findById(board.quests, id, 'quest');
 
       oldQuest.columnId = updatedQuest.columnId;
       oldQuest.title = updatedQuest.title;
@@ -158,6 +202,7 @@ export class BoardManager implements IBoardManager {
       oldQuest.creation = updatedQuest.creation;
       oldQuest.expiration = updatedQuest.expiration;
 
+      this.notify({ type: 'questUpdated', element: updatedQuest });
       return updatedQuest;
     } catch (e) {
       throw new Error('Failed to update quest', { cause: e });
@@ -175,6 +220,7 @@ export class BoardManager implements IBoardManager {
         this.loadedBoard = null;
       }
 
+      this.notify({ type: 'boardDeleted', element: result.board });
       return result;
     } catch (e) {
       throw new Error(`Failed to delete board with id: ${id}`, { cause: e });
@@ -197,6 +243,7 @@ export class BoardManager implements IBoardManager {
         );
       }
 
+      this.notify({ type: 'columnDeleted', element: result.column });
       return result;
     } catch (e) {
       throw new Error(`Failed to delete column with id: ${id}`, { cause: e });
@@ -216,9 +263,15 @@ export class BoardManager implements IBoardManager {
         );
       }
 
+      this.notify({ type: 'questDeleted', element: result.quest });
       return result;
     } catch (e) {
       throw new Error(`Failed to delete quest with id: ${id}`, { cause: e });
     }
+  }
+
+  /** Оповещение подписанных элементов об изменениях */
+  private notify(event: ChangeEvent): void {
+    this.listeners.forEach((listener) => listener(event));
   }
 }

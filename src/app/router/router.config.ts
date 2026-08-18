@@ -13,5 +13,5 @@ export const VALID_LAYERS: Record<RealmId, string[]> = {
   ],
   town: ['guild-hall', 'tavern', 'herald'],
   lands: ['map', 'dungeons'],
-};
+}; // TODO: пересмотреть структуру объекта. Возможно прийти к виду RealmID
 export const DEFAULT_REALM: RealmId = 'haven';

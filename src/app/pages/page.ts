@@ -1,18 +1,13 @@
-import type { ToolbarAction } from '@/types/board-pages/board-pages.types.ts';
+import type { ToolbarAction } from '@/shared/types/common.types.ts';
 
-// Базовый класс для всех возможных страниц
+/** Базовый класс для всех возможных страниц */
 export abstract class Page {
-  private readonly TOOLBAR_CLASS_NAME: string = 'toolbar-container'; // Класс тулбар контейнера
-  private handlers: Array<{
-    element: Element;
-    type: string;
-    listener: EventListener;
-    options?: boolean | AddEventListenerOptions;
-  }> = []; // Слушатели всех элементов страницы
-  private page: HTMLElement[] | null = null; // Монтируемая страница
-  private toolbar: HTMLElement | null = null; // Элемент тулбара страницы
   private readonly toolbarActions: ToolbarAction[]; // Доступные действия из тулбара
   private readonly pageMountContainer: HTMLElement; // Корневой родительский контейнер
+  private page: HTMLElement[] | null = null; // Монтируемая страница
+  private toolbar: HTMLElement | null = null; // Элемент тулбара страницы
+  private abortController: AbortController | null = null;
+  private readonly TOOLBAR_CLASS_NAME: string = 'toolbar-container'; // Класс тулбар контейнера
 
   protected constructor(
     mountContainer: HTMLElement,
@@ -22,15 +17,22 @@ export abstract class Page {
     this.toolbarActions = toolbarActions;
   }
 
-  // Метод создающий всю разметку страницы
+  /** Инициализация, исполнение необходимого при монтировании страницы */
+  protected abstract onMount(): Promise<void>;
+
+  /** Метод создающий всю разметку страницы */
   protected abstract createPageLayout(): HTMLElement[];
 
-  // Обработчик кликов по кнопкам. Обработка события по id из датасета кнопки
-  protected abstract handleToolbarAction(button: HTMLButtonElement): void;
+  /** Обработчик кликов по кнопкам. Обработка события по id из датасета кнопки */
+  protected abstract handleToolbarAction(
+    actionId: string,
+    action: string,
+    button: HTMLButtonElement,
+  ): void;
 
-  // Монтирование страницы
+  /** Монтирование страницы */
   public mount(): void {
-    if (this.page || this.toolbar) {
+    if (this.page) {
       throw new Error('Page is already mounted');
     }
 
@@ -39,46 +41,42 @@ export abstract class Page {
     this.pageMountContainer.append(...this.page, this.toolbar);
   }
 
-  // Размонтирование страницы
+  /** Размонтирование страницы */
   public unmount(): void {
-    this.removeAllListeners();
+    if (!this.page) {
+      throw new Error('Page is not mounted');
+    }
+    this.abortController?.abort();
     this.clearMountContainer();
   }
 
-  // TODO: Переделать систему на aborController
-  // Метод для добавления нового обработчика на элемент
+  /** Метод для добавления нового обработчика на элемент */
   protected addListener<K extends keyof HTMLElementEventMap>(
     element: HTMLElement,
     type: K,
     listener: (event: HTMLElementEventMap[K]) => void,
-    options?: boolean | AddEventListenerOptions,
+    options?: AddEventListenerOptions,
   ): void {
-    element.addEventListener(type, listener as EventListener, options);
-    this.handlers.push({
-      element,
-      type,
-      listener: listener as EventListener, // TODO: Стоит пересмотреть хранение
-      options,
+    if (!this.abortController) {
+      throw new Error('Cannot add listener before page is mounted');
+    }
+
+    element.addEventListener(type, listener, {
+      once: options?.once,
+      passive: options?.passive,
+      capture: options?.capture,
+      signal: this.abortController.signal,
     });
   }
 
-  // Снятие всех обработчиков
-  private removeAllListeners(): void {
-    this.handlers.forEach(({ element, type, listener, options }) => {
-      element.removeEventListener(type, listener, options);
-    });
-
-    this.handlers = [];
-  }
-
-  // Очистка всего родительского контейнера
+  /** Очистка всего родительского контейнера */
   private clearMountContainer(): void {
     this.pageMountContainer.replaceChildren();
     this.page = null;
     this.toolbar = null;
   }
 
-  // Создание контейнера тулбара для страницы
+  /** Создание контейнера тулбара для страницы */
   private createToolbar(): HTMLElement {
     const toolbar = document.createElement('ul');
     toolbar.classList.add(this.TOOLBAR_CLASS_NAME);
@@ -86,7 +84,7 @@ export abstract class Page {
     return toolbar;
   }
 
-  // Метод наполняющий панель действий
+  /** Метод наполняющий панель действий */
   private addActionsToToolbar(
     toolbar: HTMLElement,
     toolbarActions: ToolbarAction[],
@@ -95,35 +93,34 @@ export abstract class Page {
       const button = this.createButton(action);
       toolbar.appendChild(button);
     });
-    this.attachToolbarDelegation(toolbar);
+    this.attachToolbarDelegate(toolbar);
   }
 
-  // Создание кнопки тулбара
+  /** Создание кнопки тулбара */
   private createButton(action: ToolbarAction): HTMLButtonElement {
     const button = document.createElement('button');
     button.classList.add(`${this.TOOLBAR_CLASS_NAME}__action-button`);
-    button.dataset.actionId = String(action.id);
+    button.dataset.actionId = String(action.actionId);
     button.dataset.action = action.action;
     return button;
   }
 
-  // Вешаем слушатель на родительский тулбар
-  private attachToolbarDelegation(toolbar: HTMLElement): void {
-    // Сохраняем слушатель для последующего удаления
+  /** Вешаем слушатель на родительский тулбар */
+  private attachToolbarDelegate(toolbar: HTMLElement): void {
     this.addListener(toolbar, 'click', (event) => {
       const target = event.target;
-      if (!(target instanceof HTMLElement)) {
-        return;
-      }
+      if (!(target instanceof HTMLElement)) return;
 
       const button = target.closest<HTMLButtonElement>(
-        '.toolbar-container__action-button',
+        `.${this.TOOLBAR_CLASS_NAME}__action-button`,
       );
-      if (!button) {
-        return;
-      }
+      if (!button) return;
 
-      this.handleToolbarAction(button);
+      const actionId: string | undefined = button.dataset.actionId;
+      const action: string | undefined = button.dataset.action;
+      if (!action || !actionId) return;
+
+      this.handleToolbarAction(actionId, action, button);
     });
   }
 }

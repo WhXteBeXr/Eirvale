@@ -1,0 +1,33 @@
+.body {
+  block-size: 100vh;
+  inline-size: 100%;
+  padding: 23px 20px;
+}
+
+.app {
+  block-size: inherit;
+  inline-size: inherit;
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 15px;
+}
+
+.sidebar {
+  inline-size: 270px;
+  block-size: 100%;
+  background-color: #d9d9d9;
+}
+
+.sidebar__container {
+  inline-size: inherit;
+  block-size: inherit;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.sidebar__section {
+  inline-size: inherit;
+  aspect-ratio: 1/1;
+  background-color: darkgray;
+}
