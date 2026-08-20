@@ -2,7 +2,6 @@ import '@/app/styles/global.css';
 import '@/app/styles/style.css';
 
 import { QuestBoardPage } from '@/app/pages/board-structure/quest-boards/quest-boards.ts';
-import { TOOLBAR_ACTIONS } from '@/mocks/data/quest-boards-data.ts';
 import { BoardManager } from '@/app/pages/services/managers/board-manager.ts';
 import boardApiMock from '@/mocks/board-api.mock.ts';
 
@@ -15,7 +14,6 @@ const manager = new BoardManager(boardApiMock);
 const questBoardsPage: QuestBoardPage = new QuestBoardPage(
   manager,
   pageContainer,
-  TOOLBAR_ACTIONS,
 );
 
 questBoardsPage.mount();

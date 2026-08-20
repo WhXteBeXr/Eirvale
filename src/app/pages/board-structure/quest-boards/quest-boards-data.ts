@@ -1,20 +1,20 @@
 import type { ToolbarAction } from '@/shared/types/common.types.ts';
 
-export const TOOLBAR_ACTIONS: ToolbarAction[] = [
+export const QB_TOOLBAR_ACTIONS: ToolbarAction[] = [
   {
     id: '0',
-    action: 'add',
+    name: 'New board',
   },
   {
     id: '1',
-    action: 'delete',
+    name: 'Delete board',
   },
   {
     id: '2',
-    action: 'archive',
+    name: 'archive',
   },
   {
     id: '3',
-    action: 'self destruction',
+    name: 'self destruction',
   },
 ];

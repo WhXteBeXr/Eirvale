@@ -11,20 +11,20 @@ import type { Id } from '@/shared/types/common.types.ts';
 
 // Данные, возвращаемые методом каскадного удаления доски
 export interface DeletedBoardData {
-  board: QuestBoard,
-  columnsIds: Id[],
-  questIds: Id[],
+  board: QuestBoard;
+  columnsIds: Id[];
+  questIds: Id[];
 }
 
 // Данные, возвращаемые методом каскадного удаления колонки
 export interface DeletedColumnData {
-  column: QuestColumn,
-  questIds: Id[],
+  column: QuestColumn;
+  questIds: Id[];
 }
 
 // Данные, возвращаемые методом каскадного удаления квеста
 export interface DeletedQuestData {
-  quest: QuestCard,
+  quest: QuestCard;
 }
 
 /** Контракт мок класса для доски */

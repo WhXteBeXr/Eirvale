@@ -19,6 +19,8 @@ import findById from '@/shared/utils/QB-find-by-id.ts';
 import questBoardsData from '@/mocks/data/quest-boards-data.json';
 import { ApiError } from '@/shared/errors/api-errors.ts';
 
+// TODO: Переделать мок данные, id на 00000000-0000-0000-0000-000000000001 подобные
+
 /** Класс имитирующий работу с сервером для страниц со структурами досок */
 class MockBoardApi implements IBoardApi {
   private readonly BOARD_ENTITY_NAME = 'board' as const;

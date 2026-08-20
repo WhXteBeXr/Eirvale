@@ -1,5 +1,7 @@
 import type { ISODate, Id } from '@/shared/types/common.types.ts';
 
+export type ParentName = 'quest' | 'column' | 'board';
+
 // TODO: Пройтись по названиям, подобрать более подходящие
 
 // Ключи (род даты) для поиска в QuestCard

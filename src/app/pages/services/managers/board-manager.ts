@@ -28,6 +28,8 @@ export class BoardManager implements IBoardManager {
   private boardsList: QuestBoard[] | null = null; // Все доски полученные от сервера
   private loadedBoard: QBFullData | null = null; // Текущая выбранная доска
 
+  // TODO: Добавить состояния загрузки
+
   constructor(api: IBoardApi) {
     this.api = api;
   }
@@ -73,6 +75,7 @@ export class BoardManager implements IBoardManager {
     return structuredClone(this.boardsList);
   }
 
+  // TODO: Добавить состояния менеджеру
   getLoadedBoard(): QBFullData {
     if (!this.loadedBoard) {
       throw new Error('Current board is not loaded');

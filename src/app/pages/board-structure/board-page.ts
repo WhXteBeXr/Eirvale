@@ -15,6 +15,7 @@ import type {
   ToolbarAction,
 } from '@/shared/types/common.types.ts';
 
+// TODO: Вынести названия классов
 // TODO: Вынести создание тулбара в отдельный класс
 
 /** Базовый класс для страниц с досочной структурой */
@@ -27,11 +28,8 @@ export abstract class BoardPage extends Page {
   private readonly selectionItems: Map<Id, HTMLLIElement> = new Map<
     Id,
     HTMLLIElement
-  >();
-  private readonly boardsOnPage: Map<Id, HTMLElement> = new Map<
-    Id,
-    HTMLLIElement
-  >();
+  >(); // Сохраненные элементы списка выбора досок
+  protected boardOnPage: { id: Id; element: HTMLElement } | null = null; // Отрисованная доска на странице
   private readonly columnsOnBoard: Map<Id, HTMLLIElement> = new Map<
     Id,
     HTMLLIElement
@@ -54,6 +52,22 @@ export abstract class BoardPage extends Page {
     super(mountContainer, toolbarActions);
     this.boardManager = boardManager;
   }
+
+  /** Создание дополнительной разметки требуемой конкретной странице */
+  protected abstract decorateBoard(
+    board: HTMLElement,
+    boardData: QuestBoard,
+  ): void;
+
+  protected abstract decorateColumn(
+    column: HTMLLIElement,
+    columnData: QuestColumn,
+  ): void;
+
+  protected abstract decorateQuest(
+    quest: HTMLLIElement,
+    questData: QuestCard,
+  ): void;
 
   // TODO: Разобраться с return. Разделить ответственности загрузки и подписки
   /** Подписка на изменения. Загрузка первой доски*/
@@ -82,7 +96,7 @@ export abstract class BoardPage extends Page {
   private handleChangeEvent(event: ChangeEvent): void {
     switch (event.type) {
       case 'boardListLoaded':
-        this.handleBoardsLoaded();
+        this.renderSelection();
         return;
       case 'newBoardLoaded':
         this.renderBoard();
@@ -119,8 +133,6 @@ export abstract class BoardPage extends Page {
     }
   }
 
-  private handleBoardsLoaded(): void {}
-
   /** Обработка события создания доски из менеджера */
   private handleBoardCreated(boardData: QuestBoard): void {
     const selectionContainer = this.getSelectionContainer();
@@ -146,7 +158,7 @@ export abstract class BoardPage extends Page {
     const loadedBoardData = this.boardManager.getLoadedBoard();
     if (loadedBoardData.board.id !== boardData.id) return;
 
-    const board = this.boardsOnPage.get(boardData.id);
+    const board = this.boardOnPage?.element;
     if (!board) return;
 
     const title = board.querySelector<HTMLHeadingElement>(
@@ -166,27 +178,34 @@ export abstract class BoardPage extends Page {
     this.selectionItems.get(boardData.id)?.remove();
     this.selectionItems.delete(boardData.id);
 
-    if (!this.boardManager.isBoardLoaded()) return;
+    if (this.boardManager.isBoardLoaded()) return;
+    const renderedBoard = this.boardOnPage?.element;
 
-    const loadedBoardData = this.boardManager.getLoadedBoard();
-    if (loadedBoardData.board.id !== boardData.id) return;
+    if (renderedBoard) {
+      this.boardOnPage = null;
+      this.columnsOnBoard.clear();
+      this.questsOnBoard.clear();
 
-    this.boardsOnPage.get(boardData.id)?.remove();
-    this.selectionItems.delete(boardData.id);
-    this.columnsOnBoard.clear();
-    this.questsOnBoard.clear();
+      const allBoards = this.boardManager.getAllLoadedBoards();
+      if (allBoards.length === 0) {
+        this.getBoardContainer().replaceChildren();
+      }
 
-    const next = this.boardManager.getAllLoadedBoards()[0];
-    if (next) void this.boardManager.loadNewBoard(next.id);
+      const nextBoard = allBoards[0];
+      if (nextBoard) void this.boardManager.loadNewBoard(nextBoard.id);
+    }
   }
 
   /** Обработка события создания колонки из менеджера */
   private handleColumnCreated(columnData: QuestColumn): void {
-    const board = this.boardsOnPage.get(columnData.boardId);
-    if (!board) return;
+    const board = this.boardOnPage?.element;
+    const columnsList = board?.querySelector(
+      `.${this.QUEST_BOARD_CLASS_NAME}__board-columns`,
+    );
+    if (!columnsList) return;
     const column = this.createColumn(columnData, []);
     this.columnsOnBoard.set(columnData.id, column);
-    board.append(column);
+    columnsList.append(column);
   }
 
   /** Обработка события обновления колонки из менеджера */
@@ -211,10 +230,13 @@ export abstract class BoardPage extends Page {
   /** Обработка события создания квеста из менеджера */
   private handleQuestCreated(questData: QuestCard): void {
     const column = this.columnsOnBoard.get(questData.columnId);
-    if (!column) return;
+    const questList = column?.querySelector(
+      `.${this.QUEST_BOARD_CLASS_NAME}__quest-list`,
+    );
+    if (!questList) return;
     const quest = this.createQuest(questData);
     this.questsOnBoard.set(questData.id, quest);
-    column.appendChild(quest);
+    questList.appendChild(quest);
   }
 
   /** Обработка события обновления квеста из менеджера */
@@ -234,7 +256,7 @@ export abstract class BoardPage extends Page {
   }
 
   /** Получение/создание корневого контейнера доски */
-  private getBoardContainer(): HTMLElement {
+  protected getBoardContainer(): HTMLElement {
     if (!this.boardContainer) {
       this.boardContainer = document.createElement('section');
       this.boardContainer.classList.add(`${this.QUEST_BOARD_CLASS_NAME}`);
@@ -243,10 +265,12 @@ export abstract class BoardPage extends Page {
   }
 
   /** Получение/создание корневого контейнера выбора досок */
-  private getSelectionContainer(): HTMLElement {
+  protected getSelectionContainer(): HTMLElement {
     if (!this.selectionContainer) {
       this.selectionContainer = document.createElement('section');
-      this.selectionContainer.classList.add(`${this.QUEST_BOARD_CLASS_NAME}`);
+      this.selectionContainer.classList.add(
+        `${this.BOARDS_SELECTION_CLASS_NAME}`,
+      );
       this.attachSelectionDelegate(this.selectionContainer);
     }
     return this.selectionContainer;
@@ -268,6 +292,7 @@ export abstract class BoardPage extends Page {
       const item = this.createSelectionItem(boardData);
       selection.appendChild(item);
     });
+
     selectionContainer.appendChild(selection);
   }
 
@@ -282,8 +307,10 @@ export abstract class BoardPage extends Page {
       `${this.BOARDS_SELECTION_CLASS_NAME}__selection-button`,
     );
     button.id = boardData.id;
+    button.dataset.action = 'select-board';
     button.textContent = boardData.title;
     listItem.appendChild(button);
+
     this.selectionItems.set(boardData.id, listItem);
     return listItem;
   }
@@ -292,40 +319,53 @@ export abstract class BoardPage extends Page {
   private attachSelectionDelegate(container: HTMLElement): void {
     this.addListener(container, 'click', (event) => {
       const target = event.target;
-      if (!(target instanceof HTMLElement)) return;
-      const button = target.closest<HTMLButtonElement>(
-        `.${this.QUEST_BOARD_CLASS_NAME}__selection-button`,
-      );
-      const boardId = button?.dataset.id;
-      if (!boardId) return;
-      const board = this.boardManager
-        .getAllLoadedBoards()
-        .find((board) => board.id === boardId);
-      if (!board) return;
 
-      void this.boardManager.loadNewBoard(board.id);
+      if (!(target instanceof HTMLElement)) return;
+      const button = target.closest<HTMLButtonElement>('[data-action]');
+
+      if (!button) return;
+      if (button.dataset.action === 'select-board') {
+        this.handleBoardSelectClick(button);
+      }
     });
+  }
+
+  private handleBoardSelectClick(button: HTMLButtonElement): void {
+    const boardId = button.id;
+    if (!boardId) return;
+    const board = this.boardManager
+      .getAllLoadedBoards()
+      .find((board) => board.id === boardId);
+    if (!board) return;
+
+    void this.boardManager.loadNewBoard(board.id);
   }
 
   /** Создание и отрисовка загруженной доски */
   private renderBoard(): void {
     const loadedBoardData = this.boardManager.getLoadedBoard();
     const board = this.getBoardContainer();
+    board.replaceChildren();
 
     const boardHeader = document.createElement('div');
     boardHeader.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__board-header`);
 
-    const title = document.createElement('h2');
-    title.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__board-title`);
-    title.textContent = loadedBoardData.board.title;
+    const title = document.createElement('input');
+    title.classList.add('input', `${this.QUEST_BOARD_CLASS_NAME}__board-title`);
+    title.type = 'text';
+    title.placeholder = 'Board name';
+    title.value = loadedBoardData.board.title;
     boardHeader.appendChild(title);
 
-    const description = document.createElement('p');
+    const description = document.createElement('textarea');
     description.classList.add(
+      'textarea',
       `${this.QUEST_BOARD_CLASS_NAME}__board-description`,
     );
+    description.placeholder = 'Your board description';
+
     if (loadedBoardData.board.description) {
-      description.textContent = loadedBoardData.board.description;
+      description.value = loadedBoardData.board.description;
     }
     boardHeader.appendChild(description);
 
@@ -343,7 +383,9 @@ export abstract class BoardPage extends Page {
     });
     board.appendChild(columns);
 
-    this.boardsOnPage.set(loadedBoardData.board.id, board);
+    this.decorateBoard(board, loadedBoardData.board);
+
+    this.boardOnPage = { id: loadedBoardData.board.id, element: board };
   }
 
   /** Создание элемента колонки и всех квестов в ней */
@@ -359,27 +401,35 @@ export abstract class BoardPage extends Page {
     const columnHeader = document.createElement('div');
     columnHeader.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__column-header`);
 
-    const title = document.createElement('h3');
-    title.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__column-title`);
-    title.textContent = columnData.title;
+    const title = document.createElement('input');
+    title.classList.add(
+      'input',
+      `${this.QUEST_BOARD_CLASS_NAME}__column-title`,
+    );
+    title.type = 'text';
+    title.placeholder = 'Your column name';
+    title.value = columnData.title;
     columnHeader.appendChild(title);
 
     if (columnData.description) {
-      const description = document.createElement('p');
+      const description = document.createElement('textarea');
       description.classList.add(
+        'textarea',
         `${this.QUEST_BOARD_CLASS_NAME}__column-description`,
       );
-      if (columnData.description) {
-        description.textContent = columnData.description;
-      }
+      description.placeholder = 'Your column description';
+      description.value = columnData.description;
       columnHeader.appendChild(description);
     }
 
-    const importance = document.createElement('p');
+    const importance = document.createElement('input');
     importance.classList.add(
+      'input',
       `${this.QUEST_BOARD_CLASS_NAME}__column-importance`,
     );
-    importance.textContent = columnData.importance;
+    importance.type = 'text';
+    importance.placeholder = 'Column importance here';
+    importance.value = columnData.importance;
     columnHeader.appendChild(importance);
 
     column.appendChild(columnHeader);
@@ -392,6 +442,8 @@ export abstract class BoardPage extends Page {
     });
     column.appendChild(list);
 
+    this.decorateColumn(column, columnData);
+
     this.columnsOnBoard.set(columnData.id, column);
     return column;
   }
@@ -403,28 +455,40 @@ export abstract class BoardPage extends Page {
     quest.id = questData.id;
     quest.dataset.columnId = questData.columnId;
 
-    const title = document.createElement('h4');
-    title.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__quest-title`);
-    title.textContent = questData.title;
+    const title = document.createElement('input');
+    title.classList.add('input', `${this.QUEST_BOARD_CLASS_NAME}__quest-title`);
+    title.type = 'text';
+    title.placeholder = 'Your quest title';
+    title.value = questData.title;
     quest.append(title);
 
     if (questData.description) {
-      const description = document.createElement('p');
+      const description = document.createElement('textarea');
       description.classList.add(
+        'textarea',
         `${this.QUEST_BOARD_CLASS_NAME}__quest-description`,
       );
-      description.textContent = questData.description;
+      description.placeholder = 'Your quest description here';
+      description.value = questData.description;
       quest.appendChild(description);
     }
 
     if (questData.rewards.length > 0) {
       const rewards = document.createElement('ul');
       rewards.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__rewards-list`);
-      questData.rewards.forEach((reward) => {
-        const node = document.createElement('li');
-        node.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__reward`);
-        node.textContent = reward;
-        rewards.appendChild(node);
+      questData.rewards.forEach((rewardData) => {
+        const reward = document.createElement('li');
+        reward.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__reward`);
+        const rewardField = document.createElement('input');
+        rewardField.classList.add(
+          'input',
+          `${this.QUEST_BOARD_CLASS_NAME}__reward-field`,
+        );
+        rewardField.type = 'text';
+        rewardField.placeholder = 'Quest reward';
+        rewardField.value = rewardData;
+        reward.append(rewardField);
+        rewards.appendChild(reward);
       });
       quest.appendChild(rewards);
     }
@@ -438,10 +502,12 @@ export abstract class BoardPage extends Page {
         const date = document.createElement(`li`);
         date.classList.add(`${this.QUEST_BOARD_CLASS_NAME}__quest-date`);
         date.textContent = this.formatDate(kind, ISODate);
-        date.appendChild(date);
+        dates.appendChild(date);
       });
       quest.appendChild(dates);
     }
+
+    this.decorateQuest(quest, questData);
 
     this.questsOnBoard.set(questData.id, quest);
     return quest;
@@ -462,7 +528,7 @@ export abstract class BoardPage extends Page {
   private formatDate(kind: DateKind, ISODate: ISODate): string {
     // const [date, time] = ISODate.split('T');
     const [year, month, day] = ISODate.split('-');
-    const dateFormat = `${day}/${month}/${year};`;
+    const dateFormat = `${day}/${month}/${year}`;
     return kind === 'creation'
       ? `Was created on: ${dateFormat}`
       : `Expire on: ${dateFormat}`;
